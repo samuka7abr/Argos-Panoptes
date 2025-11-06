@@ -1,0 +1,35 @@
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Binary output directories
+bin/
+build/
+
+# Dependency and module helpers
+vendor/
+go.work
+go.work.sum
+
+# Testing and coverage files
+*.cover
+*.prof
+coverage*.out
+
+# Logs
+*.log
+
+# Editor and IDE settings
+.vscode/
+.idea/
+*.iml
+*~
+*.swp
+.DS_Store
+
+argos_panoptes_mvp_codado_sem_prom_grafana.md
