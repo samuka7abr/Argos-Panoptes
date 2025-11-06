@@ -31,5 +31,4 @@ coverage*.out
 *~
 *.swp
 .DS_Store
-
-argos_panoptes_mvp_codado_sem_prom_grafana.md
+docs
