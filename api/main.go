@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	storage   *Storage
+	storage   StorageInterface
 	startTime time.Time
 )
 
@@ -270,4 +270,3 @@ func activeAlertsHandler(w http.ResponseWriter, r *http.Request) {
 		"count":  len(alerts),
 	})
 }
-
