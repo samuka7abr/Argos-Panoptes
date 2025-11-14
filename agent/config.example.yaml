@@ -1,0 +1,47 @@
+agent_id: "agent-01"
+push_endpoint: "http://localhost:8081/ingest"
+push_interval: 10s
+
+targets:
+  http:
+    - name: "site-principal"
+      url: "https://exemplo.com"
+      method: GET
+      timeout: 5s
+    
+    - name: "api-backend"
+      url: "http://localhost:3000/health"
+      method: GET
+      timeout: 3s
+
+  dns:
+    - name: "google-dns"
+      fqdn: "google.com"
+      server: "8.8.8.8:53"
+    
+    - name: "cloudflare-dns"
+      fqdn: "cloudflare.com"
+      server: "1.1.1.1:53"
+
+  smtp:
+    - name: "gmail"
+      host: "smtp.gmail.com"
+      port: 587
+      starttls: true
+      timeout: 5s
+
+  icmp:
+    - name: "gateway"
+      host: "192.168.1.1"
+      timeout: 2s
+    
+    - name: "dns-server"
+      host: "8.8.8.8"
+      timeout: 2s
+
+  postgres:
+    - name: "db-producao"
+      dsn: "postgres://user:password@localhost:5432/mydb?sslmode=disable"
+      slow_ms: 100
+      ping_sql: "SELECT 1"
+
