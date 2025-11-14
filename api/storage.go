@@ -6,9 +6,22 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
 	"argos/shared"
+
+	_ "github.com/lib/pq"
 )
+
+type StorageInterface interface {
+	InsertMetrics(agentID string, metrics []shared.Metric) error
+	QueryLatest(name, service, target string) (*shared.Metric, error)
+	QueryRange(name, service, target string, start, end time.Time, step string) ([]shared.DataPoint, error)
+	ListServices() ([]string, error)
+	ListTargets(service string) ([]string, error)
+	GetMetricsCount() (int64, error)
+	GetLastIngestTime() (time.Time, error)
+	GetActiveAlerts() ([]shared.Alert, error)
+	Close() error
+}
 
 type Storage struct {
 	db *sql.DB

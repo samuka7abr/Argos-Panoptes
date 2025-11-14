@@ -18,7 +18,7 @@ func NewPusher(endpoint string) *Pusher {
 		Endpoint: endpoint,
 		Client:   &http.Client{Timeout: 10 * time.Second},
 	}
-}
+} 
 
 func (p *Pusher) Push(agentID string, metrics []Metric) error {
 	batch := Batch{
