@@ -1,0 +1,65 @@
+rules:
+  - name: http-latency-warning
+    description: "Latência HTTP acima de 400ms"
+    expr: "avg_over(5m, http_latency_ms) > 400"
+    service: web
+    for: 5m
+    severity: warning
+    email_to:
+      - ops@exemplo.com
+    
+  - name: http-down-critical
+    description: "Serviço web está down"
+    expr: "last(1m, http_up) == 0"
+    service: web
+    for: 1m
+    severity: critical
+    email_to:
+      - ops@exemplo.com
+      - oncall@exemplo.com
+  
+  - name: db-connections-high
+    description: "Muitas conexões abertas no banco"
+    expr: "last(1m, db_connections) > 50"
+    service: db
+    for: 3m
+    severity: warning
+    email_to:
+      - dba@exemplo.com
+  
+  - name: db-down-critical
+    description: "Banco de dados está down"
+    expr: "last(1m, db_up) == 0"
+    service: db
+    for: 1m
+    severity: critical
+    email_to:
+      - ops@exemplo.com
+      - dba@exemplo.com
+  
+  - name: dns-slow
+    description: "DNS com resolução lenta"
+    expr: "avg_over(5m, dns_lookup_ms) > 100"
+    service: dns
+    for: 5m
+    severity: warning
+    email_to:
+      - ops@exemplo.com
+  
+  - name: smtp-down
+    description: "Servidor SMTP inacessível"
+    expr: "last(2m, smtp_up) == 0"
+    service: smtp
+    for: 2m
+    severity: critical
+    email_to:
+      - ops@exemplo.com
+
+email:
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  smtp_user: argos@exemplo.com
+  smtp_password: senha-aqui
+  from: argos@exemplo.com
+  use_tls: true
+
