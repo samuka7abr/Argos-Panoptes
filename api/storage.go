@@ -243,3 +243,122 @@ func (s *Storage) GetActiveAlerts() ([]shared.Alert, error) {
 
 	return alerts, nil
 }
+
+type AlertRule struct {
+	ID          int      `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Expr        string   `json:"expr"`
+	Service     string   `json:"service"`
+	Target      string   `json:"target"`
+	ForDuration string   `json:"for_duration"`
+	Severity    string   `json:"severity"`
+	EmailTo     []string `json:"email_to"`
+	Enabled     bool     `json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (s *Storage) GetAlertRules() ([]AlertRule, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, description, expr, service, target, for_duration, 
+		       severity, email_to, enabled, created_at, updated_at
+		FROM alert_rules
+		WHERE enabled = true
+		ORDER BY name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rules []AlertRule
+	for rows.Next() {
+		var r AlertRule
+		var emailJSON []byte
+		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service, 
+			&r.Target, &r.ForDuration, &r.Severity, &emailJSON, &r.Enabled, 
+			&r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		json.Unmarshal(emailJSON, &r.EmailTo)
+		rules = append(rules, r)
+	}
+
+	return rules, nil
+}
+
+func (s *Storage) GetAlertRule(id int) (*AlertRule, error) {
+	var r AlertRule
+	var emailJSON []byte
+	
+	err := s.db.QueryRow(`
+		SELECT id, name, description, expr, service, target, for_duration,
+		       severity, email_to, enabled, created_at, updated_at
+		FROM alert_rules
+		WHERE id = $1
+	`, id).Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service, 
+		&r.Target, &r.ForDuration, &r.Severity, &emailJSON, &r.Enabled,
+		&r.CreatedAt, &r.UpdatedAt)
+	
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal(emailJSON, &r.EmailTo)
+	return &r, nil
+}
+
+func (s *Storage) CreateAlertRule(rule *AlertRule) error {
+	emailJSON, _ := json.Marshal(rule.EmailTo)
+	
+	return s.db.QueryRow(`
+		INSERT INTO alert_rules (name, description, expr, service, target, 
+		                         for_duration, severity, email_to, enabled)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at, updated_at
+	`, rule.Name, rule.Description, rule.Expr, rule.Service, rule.Target,
+		rule.ForDuration, rule.Severity, emailJSON, rule.Enabled).
+		Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
+}
+
+func (s *Storage) UpdateAlertRule(rule *AlertRule) error {
+	emailJSON, _ := json.Marshal(rule.EmailTo)
+	
+	result, err := s.db.Exec(`
+		UPDATE alert_rules
+		SET name = $1, description = $2, expr = $3, service = $4, target = $5,
+		    for_duration = $6, severity = $7, email_to = $8, enabled = $9,
+		    updated_at = NOW()
+		WHERE id = $10
+	`, rule.Name, rule.Description, rule.Expr, rule.Service, rule.Target,
+		rule.ForDuration, rule.Severity, emailJSON, rule.Enabled, rule.ID)
+	
+	if err != nil {
+		return err
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("alert rule not found")
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteAlertRule(id int) error {
+	result, err := s.db.Exec("DELETE FROM alert_rules WHERE id = $1", id)
+	if err != nil {
+		return err
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("alert rule not found")
+	}
+
+	return nil
+}
