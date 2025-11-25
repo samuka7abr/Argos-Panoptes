@@ -20,6 +20,11 @@ type StorageInterface interface {
 	GetMetricsCount() (int64, error)
 	GetLastIngestTime() (time.Time, error)
 	GetActiveAlerts() ([]shared.Alert, error)
+	GetAlertRules() ([]AlertRule, error)
+	GetAlertRule(id int) (*AlertRule, error)
+	CreateAlertRule(rule *AlertRule) error
+	UpdateAlertRule(rule *AlertRule) error
+	DeleteAlertRule(id int) error
 	Close() error
 }
 
@@ -245,16 +250,16 @@ func (s *Storage) GetActiveAlerts() ([]shared.Alert, error) {
 }
 
 type AlertRule struct {
-	ID          int      `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Expr        string   `json:"expr"`
-	Service     string   `json:"service"`
-	Target      string   `json:"target"`
-	ForDuration string   `json:"for_duration"`
-	Severity    string   `json:"severity"`
-	EmailTo     []string `json:"email_to"`
-	Enabled     bool     `json:"enabled"`
+	ID          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Expr        string    `json:"expr"`
+	Service     string    `json:"service"`
+	Target      string    `json:"target"`
+	ForDuration string    `json:"for_duration"`
+	Severity    string    `json:"severity"`
+	EmailTo     []string  `json:"email_to"`
+	Enabled     bool      `json:"enabled"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -276,8 +281,8 @@ func (s *Storage) GetAlertRules() ([]AlertRule, error) {
 	for rows.Next() {
 		var r AlertRule
 		var emailJSON []byte
-		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service, 
-			&r.Target, &r.ForDuration, &r.Severity, &emailJSON, &r.Enabled, 
+		if err := rows.Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service,
+			&r.Target, &r.ForDuration, &r.Severity, &emailJSON, &r.Enabled,
 			&r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
@@ -291,16 +296,16 @@ func (s *Storage) GetAlertRules() ([]AlertRule, error) {
 func (s *Storage) GetAlertRule(id int) (*AlertRule, error) {
 	var r AlertRule
 	var emailJSON []byte
-	
+
 	err := s.db.QueryRow(`
 		SELECT id, name, description, expr, service, target, for_duration,
 		       severity, email_to, enabled, created_at, updated_at
 		FROM alert_rules
 		WHERE id = $1
-	`, id).Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service, 
+	`, id).Scan(&r.ID, &r.Name, &r.Description, &r.Expr, &r.Service,
 		&r.Target, &r.ForDuration, &r.Severity, &emailJSON, &r.Enabled,
 		&r.CreatedAt, &r.UpdatedAt)
-	
+
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -314,7 +319,7 @@ func (s *Storage) GetAlertRule(id int) (*AlertRule, error) {
 
 func (s *Storage) CreateAlertRule(rule *AlertRule) error {
 	emailJSON, _ := json.Marshal(rule.EmailTo)
-	
+
 	return s.db.QueryRow(`
 		INSERT INTO alert_rules (name, description, expr, service, target, 
 		                         for_duration, severity, email_to, enabled)
@@ -327,7 +332,7 @@ func (s *Storage) CreateAlertRule(rule *AlertRule) error {
 
 func (s *Storage) UpdateAlertRule(rule *AlertRule) error {
 	emailJSON, _ := json.Marshal(rule.EmailTo)
-	
+
 	result, err := s.db.Exec(`
 		UPDATE alert_rules
 		SET name = $1, description = $2, expr = $3, service = $4, target = $5,
@@ -336,7 +341,7 @@ func (s *Storage) UpdateAlertRule(rule *AlertRule) error {
 		WHERE id = $10
 	`, rule.Name, rule.Description, rule.Expr, rule.Service, rule.Target,
 		rule.ForDuration, rule.Severity, emailJSON, rule.Enabled, rule.ID)
-	
+
 	if err != nil {
 		return err
 	}
