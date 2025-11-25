@@ -1,0 +1,131 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: argos-postgres
+    environment:
+      POSTGRES_USER: argos
+      POSTGRES_PASSWORD: argos123
+      POSTGRES_DB: argos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./api/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U argos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - argos-network
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: argos-api
+    environment:
+      DATABASE_URL: postgres://argos:argos123@postgres:5432/argos?sslmode=disable
+      API_PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  alert:
+    build:
+      context: .
+      dockerfile: alert/Dockerfile
+    container_name: argos-alert
+    environment:
+      API_URL: http://api:8080
+      RULES_FILE: /app/rules.yaml
+    volumes:
+      - ./alert/rules.docker.yaml:/app/rules.yaml:ro
+    depends_on:
+      - api
+      - mailhog
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    container_name: argos-agent
+    environment:
+      API_URL: http://api:8080
+      CONFIG_FILE: /app/config.yaml
+    volumes:
+      - ./agent/config.docker.yaml:/app/config.yaml:ro
+    depends_on:
+      - api
+      - test-nginx
+      - test-postgres
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: argos-web
+    environment:
+      VITE_API_URL: http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  test-nginx:
+    image: nginx:alpine
+    container_name: argos-test-nginx
+    ports:
+      - "8081:80"
+    volumes:
+      - ./test-services/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./test-services/html:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  test-postgres:
+    image: postgres:15-alpine
+    container_name: argos-test-postgres
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: argos-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+    networks:
+      - argos-network
+
+networks:
+  argos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
