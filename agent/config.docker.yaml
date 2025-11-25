@@ -1,0 +1,59 @@
+push_url: http://api:8080/ingest
+interval: 15s
+
+targets:
+  - type: http
+    name: test-nginx
+    url: http://test-nginx:80
+    timeout: 5s
+    expect_status: 200
+
+  - type: http
+    name: test-nginx-health
+    url: http://test-nginx:80/health
+    timeout: 5s
+    expect_status: 200
+
+  - type: http
+    name: argos-api
+    url: http://api:8080/health
+    timeout: 5s
+    expect_status: 200
+
+  - type: postgres
+    name: test-postgres
+    dsn: postgres://testuser:testpass@test-postgres:5432/testdb?sslmode=disable
+    timeout: 5s
+
+  - type: postgres
+    name: argos-postgres
+    dsn: postgres://argos:argos123@postgres:5432/argos?sslmode=disable
+    timeout: 5s
+
+  - type: dns
+    name: google-dns
+    fqdn: google.com
+    dns_server: 8.8.8.8:53
+    timeout: 3s
+
+  - type: dns
+    name: cloudflare-dns
+    fqdn: cloudflare.com
+    dns_server: 1.1.1.1:53
+    timeout: 3s
+
+  - type: smtp
+    name: mailhog
+    host: mailhog:1025
+    timeout: 5s
+
+  - type: icmp
+    name: test-nginx-ping
+    host: test-nginx
+    timeout: 3s
+
+  - type: icmp
+    name: api-ping
+    host: api
+    timeout: 3s
+
