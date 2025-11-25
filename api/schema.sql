@@ -52,6 +52,23 @@ SELECT DISTINCT ON (service, target, name)
 FROM metrics
 ORDER BY service, target, name, ts DESC;
 
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    expr TEXT NOT NULL,
+    service TEXT,
+    target TEXT,
+    for_duration TEXT NOT NULL DEFAULT '1m',
+    severity TEXT NOT NULL DEFAULT 'warning',
+    email_to JSONB NOT NULL,
+    enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_rules_enabled ON alert_rules (enabled);
+
 CREATE OR REPLACE FUNCTION cleanup_old_metrics()
 RETURNS void AS $$
 BEGIN

@@ -2,6 +2,7 @@ package shared
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ func CalculateZScore(value float64, values []float64) float64 {
 		variance += (v - mean) * (v - mean)
 	}
 	variance /= float64(len(values))
-	stdDev := variance
+	stdDev := math.Sqrt(variance)
 
 	if stdDev == 0 {
 		return 0

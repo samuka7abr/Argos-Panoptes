@@ -64,6 +64,26 @@ func (m *mockStorage) GetActiveAlerts() ([]shared.Alert, error) {
 	return []shared.Alert{}, nil
 }
 
+func (m *mockStorage) GetAlertRules() ([]AlertRule, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) GetAlertRule(id int) (*AlertRule, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) CreateAlertRule(rule *AlertRule) error {
+	return nil
+}
+
+func (m *mockStorage) UpdateAlertRule(rule *AlertRule) error {
+	return nil
+}
+
+func (m *mockStorage) DeleteAlertRule(id int) error {
+	return nil
+}
+
 func (m *mockStorage) Close() error {
 	return nil
 }
