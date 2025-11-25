@@ -48,6 +48,8 @@ func main() {
 	http.HandleFunc("/api/services", listServicesHandler)
 	http.HandleFunc("/api/targets", listTargetsHandler)
 	http.HandleFunc("/api/alerts/active", activeAlertsHandler)
+	http.HandleFunc("/api/alert-rules", alertsHandler)
+	http.HandleFunc("/api/alert-rules/", alertsHandler)
 
 	// CORS middleware
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
