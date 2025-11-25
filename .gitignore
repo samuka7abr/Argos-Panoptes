@@ -6,6 +6,10 @@
 *.dylib
 *.test
 *.out
+agent/agent
+api/api
+alert/alert
+security/security
 
 # Binary output directories
 bin/
