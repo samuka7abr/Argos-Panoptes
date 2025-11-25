@@ -10,9 +10,19 @@ import DatabasePage from "./pages/DatabasePage";
 import DNS from "./pages/DNS";
 import SMTP from "./pages/SMTP";
 import Security from "./pages/Security";
+import Alerts from "./pages/Alerts";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      retryDelay: 1000,
+      staleTime: 5000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -27,6 +37,7 @@ const App = () => (
             <Route path="/database" element={<DatabasePage />} />
             <Route path="/dns" element={<DNS />} />
             <Route path="/smtp" element={<SMTP />} />
+            <Route path="/alerts" element={<Alerts />} />
             <Route path="/security" element={<Security />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

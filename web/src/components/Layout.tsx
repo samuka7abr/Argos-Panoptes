@@ -1,5 +1,5 @@
 import { NavLink } from "./NavLink";
-import { Activity, Server, Database, Globe, Mail, Shield, LayoutDashboard } from "lucide-react";
+import { Activity, Server, Database, Globe, Mail, Shield, LayoutDashboard, Bell } from "lucide-react";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ const Layout = ({ children }: LayoutProps) => {
     { to: "/database", label: "Database", icon: Database },
     { to: "/dns", label: "DNS", icon: Globe },
     { to: "/smtp", label: "SMTP", icon: Mail },
+    { to: "/alerts", label: "Alertas", icon: Bell },
     { to: "/security", label: "Segurança", icon: Shield },
   ];
 
