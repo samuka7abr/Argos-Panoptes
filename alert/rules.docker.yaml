@@ -1,0 +1,54 @@
+smtp:
+  host: mailhog
+  port: 1025
+  from: argos@monitoring.local
+
+rules:
+  - name: http-down-critical
+    description: Serviço HTTP está fora do ar
+    expr: last(2m, http_up) == 0
+    for: 1m
+    severity: critical
+    email_to:
+      - admin@example.com
+
+  - name: http-latency-warning
+    description: Latência HTTP acima de 500ms
+    expr: avg_over(5m, http_latency_ms) > 500
+    for: 2m
+    severity: warning
+    email_to:
+      - ops@example.com
+
+  - name: postgres-down-critical
+    description: PostgreSQL está indisponível
+    expr: last(2m, postgres_up) == 0
+    for: 1m
+    severity: critical
+    email_to:
+      - dba@example.com
+
+  - name: postgres-connections-warning
+    description: Muitas conexões ativas no PostgreSQL
+    expr: last(1m, postgres_active_connections) > 50
+    for: 3m
+    severity: warning
+    email_to:
+      - dba@example.com
+
+  - name: dns-slow-warning
+    description: Lookup DNS muito lento
+    expr: avg_over(5m, dns_lookup_duration_ms) > 200
+    for: 2m
+    severity: warning
+    email_to:
+      - network@example.com
+
+  - name: smtp-down-critical
+    description: Servidor SMTP não responde
+    expr: last(2m, smtp_up) == 0
+    for: 1m
+    severity: critical
+    email_to:
+      - mail-admin@example.com
+

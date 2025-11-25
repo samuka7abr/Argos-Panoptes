@@ -1,12 +1,12 @@
 FROM golang:1.22-alpine AS builder
 
-WORKDIR /build
+WORKDIR /build/alert
 
-COPY go.mod go.sum* ./
+COPY shared ../shared
+COPY alert/go.mod alert/go.sum ./
 RUN go mod download
 
-COPY ../shared /build/shared
-COPY . .
+COPY alert/ .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o alert .
 
@@ -16,8 +16,8 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /build/alert .
-COPY rules.example.yaml /app/rules.yaml
+COPY --from=builder /build/alert/alert .
+COPY alert/rules.example.yaml /app/rules.yaml
 
 ENV RULES_PATH=/app/rules.yaml
 ENV API_URL=http://argos-api:8081
