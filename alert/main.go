@@ -28,12 +28,19 @@ func main() {
 		apiURL = "http://localhost:8081"
 	}
 
-	cfg, err := LoadRules(rulesPath)
+	log.Println("Loading alert rules...")
+	cfg, err := LoadRulesHybrid(apiURL, rulesPath)
 	if err != nil {
 		log.Fatalf("Failed to load rules: %v", err)
 	}
 
-	log.Printf("Loaded %d alert rules", len(cfg.Rules))
+	log.Printf("Loaded %d alert rules from %s", len(cfg.Rules),
+		func() string {
+			if _, apiErr := LoadRulesFromAPI(apiURL); apiErr == nil {
+				return "API"
+			}
+			return "YAML"
+		}())
 
 	evaluator := NewEvaluator(apiURL)
 	notifier := NewNotifier(cfg.Email)
