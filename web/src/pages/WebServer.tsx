@@ -2,27 +2,98 @@ import { Activity, Clock, TrendingUp, AlertCircle, Server } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StatusBadge from "@/components/StatusBadge";
+import { useLatestMetrics, useMetricQuery, useTargets } from "@/hooks/useMetrics";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState } from "react";
 
 const WebServer = () => {
-  // Mock data - será integrado com backend Golang
-  const metrics = [
-    { title: "Disponibilidade", value: "99.9", unit: "%", icon: Activity, status: "ok" as const, trend: "stable" as const },
-    { title: "Requests/segundo", value: "1,234", icon: TrendingUp, status: "ok" as const, trend: "up" as const, trendValue: "+12%" },
-    { title: "Latência Média", value: "45", unit: "ms", icon: Clock, status: "ok" as const, trend: "down" as const, trendValue: "-5ms" },
-    { title: "Taxa de Erro", value: "0.01", unit: "%", icon: AlertCircle, status: "ok" as const },
-  ];
+  const { data: latestMetrics, isLoading } = useLatestMetrics();
+  const { data: targets } = useTargets("http");
+  const [selectedTarget, setSelectedTarget] = useState<string>("");
 
-  const errorCodes = [
-    { code: "200", count: 125847, percentage: 99.85 },
-    { code: "404", count: 156, percentage: 0.12 },
-    { code: "500", count: 12, percentage: 0.01 },
-    { code: "502", count: 8, percentage: 0.01 },
-    { code: "503", count: 3, percentage: 0.00 },
-  ];
+  const httpMetrics = latestMetrics?.filter(
+    (m) => m.service === "http" || m.service === "https"
+  );
+
+  const currentTarget = selectedTarget || httpMetrics?.[0]?.target || "";
+
+  const { data: latencyData } = useMetricQuery(
+    "http",
+    currentTarget,
+    "http_latency_ms",
+    "1h",
+    !!currentTarget
+  );
+
+  const currentMetrics = httpMetrics?.find((m) => m.target === currentTarget);
+
+  const isUp = currentMetrics?.metrics.http_up === 1;
+  const latency = currentMetrics?.metrics.http_latency_ms || 0;
+  const statusCode = currentMetrics?.metrics.http_status_code || 0;
+
+  const chartData =
+    latencyData?.data.map((d) => ({
+      time: new Date(d.timestamp).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      latency: d.value,
+    })) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+          <p className="mt-4 text-muted-foreground">Carregando métricas...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!httpMetrics || httpMetrics.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="rounded-lg bg-primary/10 p-3">
+            <Server className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Web Server (HTTP/HTTPS)</h2>
+            <p className="text-muted-foreground">Monitoramento de servidor web e APIs</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Server className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium">Nenhum serviço HTTP monitorado</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Configure o Agent para monitorar serviços HTTP/HTTPS
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-3">
@@ -33,95 +104,147 @@ const WebServer = () => {
             <p className="text-muted-foreground">Monitoramento de servidor web e APIs</p>
           </div>
         </div>
-        <StatusBadge status="ok" />
+        <StatusBadge status={isUp ? "ok" : "critical"} />
       </div>
 
-      {/* Metrics Grid */}
+      {httpMetrics.length > 1 && (
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium">Target:</label>
+          <Select value={currentTarget} onValueChange={setSelectedTarget}>
+            <SelectTrigger className="w-[300px]">
+              <SelectValue placeholder="Selecione um target" />
+            </SelectTrigger>
+            <SelectContent>
+              {httpMetrics.map((m) => (
+                <SelectItem key={m.target} value={m.target}>
+                  {m.target}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {metrics.map((metric, index) => (
-          <MetricCard key={index} {...metric} />
-        ))}
+        <MetricCard
+          title="Disponibilidade"
+          value={isUp ? "100" : "0"}
+          unit="%"
+          icon={Activity}
+          status={isUp ? "ok" : "critical"}
+          trend="stable"
+        />
+        <MetricCard
+          title="Latência"
+          value={latency.toFixed(0)}
+          unit="ms"
+          icon={Clock}
+          status={latency < 100 ? "ok" : latency < 500 ? "warning" : "critical"}
+        />
+        <MetricCard
+          title="Status Code"
+          value={statusCode}
+          icon={TrendingUp}
+          status={statusCode >= 200 && statusCode < 300 ? "ok" : "warning"}
+        />
+        <MetricCard
+          title="Targets Ativos"
+          value={httpMetrics.length}
+          icon={AlertCircle}
+          status="ok"
+        />
       </div>
 
-      {/* Additional Stats */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Latência (última hora)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="time" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="latency"
+                  stroke="hsl(var(--primary))"
+                  name="Latência (ms)"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              Sem dados disponíveis
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Códigos de Status HTTP</CardTitle>
+            <CardTitle>Todos os Targets</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {errorCodes.map((error) => (
-                <div key={error.code} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className={`font-mono text-sm px-2 py-1 rounded ${
-                      error.code.startsWith("2") ? "bg-status-ok/20 text-status-ok" :
-                      error.code.startsWith("4") ? "bg-status-warning/20 text-status-warning" :
-                      "bg-status-critical/20 text-status-critical"
-                    }`}>
-                      {error.code}
-                    </span>
-                    <span className="text-sm text-muted-foreground">{error.count.toLocaleString()} requisições</span>
+              {httpMetrics.map((metric) => {
+                const targetUp = metric.metrics.http_up === 1;
+                const targetLatency = metric.metrics.http_latency_ms || 0;
+                const targetStatus = metric.metrics.http_status_code || 0;
+
+                return (
+                  <div
+                    key={metric.target}
+                    className="flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <StatusBadge status={targetUp ? "ok" : "critical"} />
+                        <span className="font-medium">{metric.target}</span>
+                      </div>
+                      <div className="flex gap-4 text-xs text-muted-foreground">
+                        <span>Latência: {targetLatency.toFixed(0)}ms</span>
+                        <span>Status: {targetStatus}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium">{error.percentage.toFixed(2)}%</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Conexões Ativas</CardTitle>
+            <CardTitle>Detalhes do Target Atual</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="text-2xl font-bold">342</span>
-                </div>
-                <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: "68%" }} />
-                </div>
+                <p className="text-sm text-muted-foreground">URL</p>
+                <p className="text-lg font-semibold">{currentTarget}</p>
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Keep-Alive</p>
-                  <p className="text-xl font-semibold">287</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Novas</p>
-                  <p className="text-xl font-semibold">55</p>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="text-lg font-semibold">{isUp ? "Online" : "Offline"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Última Verificação</p>
+                <p className="text-lg font-semibold">
+                  {currentMetrics
+                    ? new Date(currentMetrics.timestamp).toLocaleString("pt-BR")
+                    : "-"}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Performance Details */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalhes de Performance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Latência P50</p>
-              <p className="text-2xl font-bold">32<span className="text-base font-normal text-muted-foreground ml-1">ms</span></p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Latência P95</p>
-              <p className="text-2xl font-bold">78<span className="text-base font-normal text-muted-foreground ml-1">ms</span></p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Latência P99</p>
-              <p className="text-2xl font-bold">145<span className="text-base font-normal text-muted-foreground ml-1">ms</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
