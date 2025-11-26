@@ -1,5 +1,8 @@
+# Argos Panoptes - Sistema de Monitoramento
+# Este compose roda APENAS o Argos (não inclui sistemas monitorados)
 
 services:
+  # Banco de dados do Argos
   postgres:
     image: postgres:15-alpine
     container_name: argos-postgres
@@ -20,6 +23,7 @@ services:
     networks:
       - argos-network
 
+  # API de ingestão e consulta
   api:
     build:
       context: .
@@ -27,24 +31,26 @@ services:
     container_name: argos-api
     environment:
       DATABASE_URL: postgres://argos:argos123@postgres:5432/argos?sslmode=disable
-      API_PORT: "8080"
+      API_PORT: "8082"
     ports:
-      - "8080:8080"
+      - "8082:8082"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - argos-network
+      - external-monitoring  # Permite monitorar sistemas externos
 
+  # Motor de alertas
   alert:
     build:
       context: .
       dockerfile: alert/Dockerfile
     container_name: argos-alert
     environment:
-      API_URL: http://api:8080
-      RULES_FILE: /app/rules.yaml
+      API_URL: http://api:8082
+      RULES_PATH: /app/rules.yaml
     volumes:
       - ./alert/rules.docker.yaml:/app/rules.yaml:ro
     depends_on:
@@ -54,31 +60,32 @@ services:
     networks:
       - argos-network
 
+  # Agente coletor de métricas
   agent:
     build:
       context: .
       dockerfile: agent/Dockerfile
     container_name: argos-agent
     environment:
-      API_URL: http://api:8080
-      CONFIG_FILE: /app/config.yaml
+      API_URL: http://api:8082
+      CONFIG_PATH: /app/config.yaml
     volumes:
       - ./agent/config.docker.yaml:/app/config.yaml:ro
     depends_on:
       - api
-      - test-nginx
-      - test-postgres
     restart: unless-stopped
     networks:
       - argos-network
+      - external-monitoring  # Permite acessar sistemas externos
 
+  # Dashboard Web
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
     container_name: argos-web
     environment:
-      VITE_API_URL: http://localhost:8080
+      VITE_API_URL: http://localhost:8082
     ports:
       - "3000:80"
     depends_on:
@@ -87,45 +94,24 @@ services:
     networks:
       - argos-network
 
-  test-nginx:
-    image: nginx:alpine
-    container_name: argos-test-nginx
-    ports:
-      - "8081:80"
-    volumes:
-      - ./test-services/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./test-services/html:/usr/share/nginx/html:ro
-    restart: unless-stopped
-    networks:
-      - argos-network
-
-  test-postgres:
-    image: postgres:15-alpine
-    container_name: argos-test-postgres
-    environment:
-      POSTGRES_USER: testuser
-      POSTGRES_PASSWORD: testpass
-      POSTGRES_DB: testdb
-    ports:
-      - "5433:5432"
-    restart: unless-stopped
-    networks:
-      - argos-network
-
+  # MailHog para testar emails
   mailhog:
     image: mailhog/mailhog:latest
     container_name: argos-mailhog
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
     restart: unless-stopped
     networks:
       - argos-network
 
 networks:
   argos-network:
+    name: argos-network
     driver: bridge
+  external-monitoring:
+    name: external-monitoring
+    external: true
 
 volumes:
   postgres_data:
-

@@ -17,10 +17,10 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 COPY --from=builder /build/alert/alert .
-COPY alert/rules.example.yaml /app/rules.yaml
+COPY alert/rules.docker.yaml /app/rules.yaml
 
 ENV RULES_PATH=/app/rules.yaml
-ENV API_URL=http://argos-api:8081
+ENV API_URL=http://api:8082
 
 CMD ["./alert"]
 

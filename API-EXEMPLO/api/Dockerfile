@@ -1,12 +1,11 @@
 FROM golang:1.22-alpine AS builder
 
-WORKDIR /build/api
+WORKDIR /build
 
-COPY shared ../shared
-COPY api/go.mod api/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY api/ .
+COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o api .
 
@@ -16,10 +15,10 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /app
 
-COPY --from=builder /build/api/api .
-COPY api/schema.sql .
+COPY --from=builder /build/api .
 
-EXPOSE 8082
+EXPOSE 8080
 
 CMD ["./api"]
+
 

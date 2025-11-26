@@ -15,6 +15,7 @@ type StorageInterface interface {
 	InsertMetrics(agentID string, metrics []shared.Metric) error
 	QueryLatest(name, service, target string) (*shared.Metric, error)
 	QueryRange(name, service, target string, start, end time.Time, step string) ([]shared.DataPoint, error)
+	GetLatestMetrics() ([]shared.Metric, error)
 	ListServices() ([]string, error)
 	ListTargets(service string) ([]string, error)
 	GetMetricsCount() (int64, error)
@@ -167,6 +168,31 @@ func (s *Storage) QueryRange(name, service, target string, start, end time.Time,
 	}
 
 	return dataPoints, nil
+}
+
+func (s *Storage) GetLatestMetrics() ([]shared.Metric, error) {
+	rows, err := s.db.Query(`
+		SELECT name, service, target, value, ts, labels
+		FROM latest_metrics
+		ORDER BY service, target, name
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var metrics []shared.Metric
+	for rows.Next() {
+		var m shared.Metric
+		var labelsJSON []byte
+		if err := rows.Scan(&m.Name, &m.Service, &m.Target, &m.Value, &m.TS, &labelsJSON); err != nil {
+			return nil, err
+		}
+		json.Unmarshal(labelsJSON, &m.Labels)
+		metrics = append(metrics, m)
+	}
+
+	return metrics, nil
 }
 
 func (s *Storage) ListServices() ([]string, error) {

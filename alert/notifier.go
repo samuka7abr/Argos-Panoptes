@@ -66,9 +66,13 @@ func (n *Notifier) sendEmail(to, subject, body string) error {
 		"\r\n"+
 		"%s\r\n", from, to, subject, body))
 
-	auth := smtp.PlainAuth("", n.config.SMTPUser, password, smtpHost)
-
 	addr := fmt.Sprintf("%s:%d", smtpHost, smtpPort)
+
+	// Se não tiver senha, não usa autenticação (para MailHog e servidores de teste)
+	var auth smtp.Auth
+	if password != "" {
+		auth = smtp.PlainAuth("", n.config.SMTPUser, password, smtpHost)
+	}
 
 	if n.config.UseTLS {
 		return n.sendEmailTLS(addr, auth, from, []string{to}, message)

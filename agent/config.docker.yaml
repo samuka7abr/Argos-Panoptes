@@ -1,59 +1,72 @@
-push_url: http://api:8080/ingest
-interval: 15s
+# Configuração do Argos Agent para Docker
+# Este agente monitora sistemas externos através da rede 'external-monitoring'
+
+agent_id: argos-docker-agent
+push_endpoint: http://api:8082/ingest
+push_interval: 15s
 
 targets:
-  - type: http
-    name: test-nginx
-    url: http://test-nginx:80
-    timeout: 5s
-    expect_status: 200
+  # Monitora a API-EXEMPLO através do Nginx
+  http:
+    - name: api-exemplo-web
+      url: http://api-nginx/
+      method: GET
+      timeout: 5s
 
-  - type: http
-    name: test-nginx-health
-    url: http://test-nginx:80/health
-    timeout: 5s
-    expect_status: 200
+    - name: api-exemplo-health
+      url: http://api-nginx/health
+      method: GET
+      timeout: 5s
 
-  - type: http
-    name: argos-api
-    url: http://api:8080/health
-    timeout: 5s
-    expect_status: 200
+    - name: api-exemplo-users
+      url: http://api-nginx/users
+      method: GET
+      timeout: 5s
 
-  - type: postgres
-    name: test-postgres
-    dsn: postgres://testuser:testpass@test-postgres:5432/testdb?sslmode=disable
-    timeout: 5s
+    # Monitora também o próprio Argos
+    - name: argos-api-health
+      url: http://api:8082/health
+      method: GET
+      timeout: 5s
 
-  - type: postgres
-    name: argos-postgres
-    dsn: postgres://argos:argos123@postgres:5432/argos?sslmode=disable
-    timeout: 5s
+  # Monitora o banco da API-EXEMPLO
+  postgres:
+    - name: api-database
+      dsn: postgres://apiuser:apipass@api-database:5432/apidb?sslmode=disable
+      timeout: 5s
 
-  - type: dns
-    name: google-dns
-    fqdn: google.com
-    dns_server: 8.8.8.8:53
-    timeout: 3s
+    # Monitora o banco do Argos
+    - name: argos-database
+      dsn: postgres://argos:argos123@postgres:5432/argos?sslmode=disable
+      timeout: 5s
 
-  - type: dns
-    name: cloudflare-dns
-    fqdn: cloudflare.com
-    dns_server: 1.1.1.1:53
-    timeout: 3s
+  # Monitora resolução DNS
+  dns:
+    - name: google-dns
+      fqdn: google.com
+      server: 8.8.8.8:53
 
-  - type: smtp
-    name: mailhog
-    host: mailhog:1025
-    timeout: 5s
+    - name: cloudflare-dns
+      fqdn: cloudflare.com
+      server: 1.1.1.1:53
 
-  - type: icmp
-    name: test-nginx-ping
-    host: test-nginx
-    timeout: 3s
+  # Monitora SMTP do MailHog
+  smtp:
+    - name: mailhog-smtp
+      host: argos-mailhog
+      port: 1025
+      timeout: 5s
 
-  - type: icmp
-    name: api-ping
-    host: api
-    timeout: 3s
+  # Monitora conectividade ICMP
+  icmp:
+    - name: api-example-ping
+      host: api-example
+      timeout: 3s
 
+    - name: api-database-ping
+      host: api-database
+      timeout: 3s
+
+    - name: api-nginx-ping
+      host: api-nginx
+      timeout: 3s

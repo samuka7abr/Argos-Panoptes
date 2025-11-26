@@ -1,54 +1,77 @@
-smtp:
-  host: mailhog
-  port: 1025
+# Configuração de alertas do Argos
+# Monitora a API-EXEMPLO e envia notificações por email
+
+email:
+  smtp_host: argos-mailhog
+  smtp_port: 1025
   from: argos@monitoring.local
+  use_tls: false
 
 rules:
-  - name: http-down-critical
-    description: Serviço HTTP está fora do ar
+  # Alertas para API-EXEMPLO
+  - name: api-exemplo-down
+    description: API-EXEMPLO está fora do ar
     expr: last(2m, http_up) == 0
     for: 1m
     severity: critical
     email_to:
-      - admin@example.com
+      - abrao.sam.2006@gmail.com
 
-  - name: http-latency-warning
-    description: Latência HTTP acima de 500ms
+  - name: api-exemplo-latency-high
+    description: API-EXEMPLO com latência alta (>500ms)
     expr: avg_over(5m, http_latency_ms) > 500
     for: 2m
     severity: warning
     email_to:
-      - ops@example.com
+      - abrao.sam.2006@gmail.com
 
-  - name: postgres-down-critical
-    description: PostgreSQL está indisponível
-    expr: last(2m, postgres_up) == 0
+  - name: api-exemplo-errors
+    description: API-EXEMPLO retornando erros HTTP (5xx)
+    expr: last(1m, http_status_code) >= 500
     for: 1m
     severity: critical
     email_to:
-      - dba@example.com
+      - abrao.sam.2006@gmail.com
 
-  - name: postgres-connections-warning
-    description: Muitas conexões ativas no PostgreSQL
-    expr: last(1m, postgres_active_connections) > 50
+  # Alertas para banco de dados da API
+  - name: api-database-down
+    description: Banco de dados da API-EXEMPLO está indisponível
+    expr: last(2m, db_up) == 0
+    for: 1m
+    severity: critical
+    email_to:
+      - abrao.sam.2006@gmail.com
+
+  - name: api-database-connections-high
+    description: Muitas conexões ativas no banco da API-EXEMPLO
+    expr: last(1m, db_connections) > 50
     for: 3m
     severity: warning
     email_to:
-      - dba@example.com
+      - abrao.sam.2006@gmail.com
 
-  - name: dns-slow-warning
-    description: Lookup DNS muito lento
-    expr: avg_over(5m, dns_lookup_duration_ms) > 200
+  # Alertas para DNS
+  - name: dns-resolution-slow
+    description: Resolução DNS muito lenta (>200ms)
+    expr: avg_over(5m, dns_lookup_ms) > 200
     for: 2m
     severity: warning
     email_to:
-      - network@example.com
+      - abrao.sam.2006@gmail.com
 
-  - name: smtp-down-critical
+  - name: dns-resolution-failed
+    description: Falha na resolução DNS
+    expr: last(2m, dns_up) == 0
+    for: 1m
+    severity: critical
+    email_to:
+      - abrao.sam.2006@gmail.com
+
+  # Alertas para SMTP
+  - name: smtp-server-down
     description: Servidor SMTP não responde
     expr: last(2m, smtp_up) == 0
     for: 1m
     severity: critical
     email_to:
-      - mail-admin@example.com
-
+      - abrao.sam.2006@gmail.com

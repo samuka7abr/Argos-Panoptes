@@ -17,7 +17,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 COPY --from=builder /build/agent/agent .
-COPY agent/config.example.yaml /app/config.yaml
+COPY agent/config.docker.yaml /app/config.yaml
 
 ENV CONFIG_PATH=/app/config.yaml
 

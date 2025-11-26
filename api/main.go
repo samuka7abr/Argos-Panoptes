@@ -43,10 +43,11 @@ func main() {
 	// Rotas
 	http.HandleFunc("/ingest", ingestHandler)
 	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/api/metrics/latest", latestMetricsHandler)
 	http.HandleFunc("/api/metrics/query", queryHandler)
 	http.HandleFunc("/api/metrics/range", queryRangeHandler)
-	http.HandleFunc("/api/services", listServicesHandler)
-	http.HandleFunc("/api/targets", listTargetsHandler)
+	http.HandleFunc("/api/metrics/services", listServicesHandler)
+	http.HandleFunc("/api/metrics/targets", listTargetsHandler)
 	http.HandleFunc("/api/alerts/active", activeAlertsHandler)
 	http.HandleFunc("/api/alert-rules", alertsHandler)
 	http.HandleFunc("/api/alert-rules/", alertsHandler)
@@ -218,6 +219,38 @@ func queryRangeHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func latestMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	metrics, err := storage.GetLatestMetrics()
+	if err != nil {
+		log.Printf("Get latest metrics error: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	grouped := make(map[string]map[string]interface{})
+	
+	for _, m := range metrics {
+		key := m.Service + ":" + m.Target
+		if grouped[key] == nil {
+			grouped[key] = map[string]interface{}{
+				"service":   m.Service,
+				"target":    m.Target,
+				"metrics":   make(map[string]float64),
+				"timestamp": m.TS.Format(time.RFC3339),
+			}
+		}
+		grouped[key]["metrics"].(map[string]float64)[m.Name] = m.Value
+	}
+
+	result := make([]map[string]interface{}, 0, len(grouped))
+	for _, v := range grouped {
+		result = append(result, v)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 // listServicesHandler lista todos os serviços monitorados
