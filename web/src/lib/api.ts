@@ -6,7 +6,7 @@ import type {
   HealthResponse,
 } from "./types";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 const REQUEST_TIMEOUT = 5000;
 
 class ApiError extends Error {

@@ -24,33 +24,33 @@ import { useState } from "react";
 
 const DatabasePage = () => {
   const { data: latestMetrics, isLoading } = useLatestMetrics();
-  const postgresMetrics = latestMetrics?.filter((m) => m.service === "postgres");
+  const postgresMetrics = latestMetrics?.filter((m) => m.service === "db");
   const [selectedTarget, setSelectedTarget] = useState<string>("");
 
   const currentTarget = selectedTarget || postgresMetrics?.[0]?.target || "";
 
   const { data: latencyData } = useMetricQuery(
-    "postgres",
+    "db",
     currentTarget,
-    "postgres_query_latency_ms",
+    "db_query_ms",
     "1h",
     !!currentTarget
   );
 
   const { data: connectionsData } = useMetricQuery(
-    "postgres",
+    "db",
     currentTarget,
-    "postgres_active_connections",
+    "db_connections",
     "1h",
     !!currentTarget
   );
 
   const currentMetrics = postgresMetrics?.find((m) => m.target === currentTarget);
 
-  const isUp = currentMetrics?.metrics.postgres_up === 1;
-  const latency = currentMetrics?.metrics.postgres_query_latency_ms || 0;
-  const connections = currentMetrics?.metrics.postgres_active_connections || 0;
-  const maxConnections = currentMetrics?.metrics.postgres_max_connections || 100;
+  const isUp = currentMetrics?.metrics.db_up === 1;
+  const latency = currentMetrics?.metrics.db_query_ms || 0;
+  const connections = currentMetrics?.metrics.db_connections || 0;
+  const maxConnections = currentMetrics?.metrics.db_max_connections || 100;
 
   const latencyChartData =
     latencyData?.data.map((d) => ({
@@ -270,9 +270,9 @@ const DatabasePage = () => {
         <CardContent>
           <div className="space-y-3">
             {postgresMetrics.map((metric) => {
-              const targetUp = metric.metrics.postgres_up === 1;
-              const targetLatency = metric.metrics.postgres_query_latency_ms || 0;
-              const targetConnections = metric.metrics.postgres_active_connections || 0;
+              const targetUp = metric.metrics.db_up === 1;
+              const targetLatency = metric.metrics.db_query_ms || 0;
+              const targetConnections = metric.metrics.db_connections || 0;
 
               return (
                 <div

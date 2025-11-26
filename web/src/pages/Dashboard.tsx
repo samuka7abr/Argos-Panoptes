@@ -55,7 +55,7 @@ const Dashboard = () => {
 
     const metrics = [];
 
-    if (serviceName === "http" || serviceName === "https") {
+    if (serviceName === "web") {
       const latency = serviceMetrics.metrics.http_latency_ms;
       const statusCode = serviceMetrics.metrics.http_status_code;
 
@@ -65,9 +65,9 @@ const Dashboard = () => {
       if (statusCode !== undefined) {
         metrics.push({ label: "Status Code", value: statusCode.toString() });
       }
-    } else if (serviceName === "postgres") {
-      const connections = serviceMetrics.metrics.postgres_active_connections;
-      const latency = serviceMetrics.metrics.postgres_query_latency_ms;
+    } else if (serviceName === "db") {
+      const connections = serviceMetrics.metrics.db_connections;
+      const latency = serviceMetrics.metrics.db_query_ms;
 
       if (connections !== undefined) {
         metrics.push({ label: "Conexões Ativas", value: connections.toString() });
@@ -76,13 +76,13 @@ const Dashboard = () => {
         metrics.push({ label: "Latência Query", value: `${latency.toFixed(0)}ms` });
       }
     } else if (serviceName === "dns") {
-      const latency = serviceMetrics.metrics.dns_lookup_duration_ms;
+      const latency = serviceMetrics.metrics.dns_lookup_ms;
 
       if (latency !== undefined) {
         metrics.push({ label: "Tempo de Lookup", value: `${latency.toFixed(0)}ms` });
       }
     } else if (serviceName === "smtp") {
-      const latency = serviceMetrics.metrics.smtp_handshake_duration_ms;
+      const latency = serviceMetrics.metrics.smtp_handshake_ms;
 
       if (latency !== undefined) {
         metrics.push({ label: "Tempo Handshake", value: `${latency.toFixed(0)}ms` });
@@ -100,17 +100,17 @@ const Dashboard = () => {
     {
       title: "Web Server",
       icon: Server,
-      status: getServiceStatus("http"),
-      uptime: getServiceUptime("http"),
-      metrics: getServiceMetrics("http"),
+      status: getServiceStatus("web"),
+      uptime: getServiceUptime("web"),
+      metrics: getServiceMetrics("web"),
       link: "/webserver",
     },
     {
       title: "Database",
       icon: Database,
-      status: getServiceStatus("postgres"),
-      uptime: getServiceUptime("postgres"),
-      metrics: getServiceMetrics("postgres"),
+      status: getServiceStatus("db"),
+      uptime: getServiceUptime("db"),
+      metrics: getServiceMetrics("db"),
       link: "/database",
     },
     {

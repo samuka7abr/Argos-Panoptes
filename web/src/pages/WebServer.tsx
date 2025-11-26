@@ -24,17 +24,17 @@ import { useState } from "react";
 
 const WebServer = () => {
   const { data: latestMetrics, isLoading } = useLatestMetrics();
-  const { data: targets } = useTargets("http");
+  const { data: targets } = useTargets("web");
   const [selectedTarget, setSelectedTarget] = useState<string>("");
 
   const httpMetrics = latestMetrics?.filter(
-    (m) => m.service === "http" || m.service === "https"
+    (m) => m.service === "web"
   );
 
   const currentTarget = selectedTarget || httpMetrics?.[0]?.target || "";
 
   const { data: latencyData } = useMetricQuery(
-    "http",
+    "web",
     currentTarget,
     "http_latency_ms",
     "1h",

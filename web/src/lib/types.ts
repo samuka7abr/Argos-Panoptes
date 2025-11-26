@@ -69,3 +69,4 @@ export type ServiceType = "http" | "https" | "postgres" | "dns" | "smtp" | "icmp
 
 export type Status = "ok" | "warning" | "critical";
 
+

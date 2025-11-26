@@ -23,10 +23,7 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold text-gradient">DevOps Monitor</h1>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Backend: <span className="text-primary font-medium">Golang</span>
+            <h1 className="text-xl font-bold text-gradient">Argos Panoptes</h1>
           </div>
         </div>
       </header>
