@@ -51,3 +51,4 @@ test:
 	@echo "Alert Rules:"
 	@curl -s http://localhost:8080/api/alert-rules | jq '.count' || echo "❌ Sem regras"
 
+
