@@ -98,5 +98,52 @@ export const api = {
         method: "DELETE",
       }),
   },
+
+  security: {
+    events: (limit?: number) =>
+      fetchAPI<{ events: SecurityEvent[]; count: number }>(
+        `/api/security/events${limit ? `?limit=${limit}` : ""}`
+      ),
+
+    failedLogins: (limit?: number) =>
+      fetchAPI<{ by_ip: FailedLoginByIP[]; total: number }>(
+        `/api/security/failed-logins${limit ? `?limit=${limit}` : ""}`
+      ),
+
+    configChanges: (limit?: number) =>
+      fetchAPI<{ changes: ConfigChange[]; count: number }>(
+        `/api/security/config-changes${limit ? `?limit=${limit}` : ""}`
+      ),
+
+    vulnerabilities: () =>
+      fetchAPI<{ vulnerabilities: Vulnerability[]; count: number }>(
+        "/api/security/vulnerabilities"
+      ),
+
+    stats: () =>
+      fetchAPI<{
+        failed_logins: number;
+        traffic_anomalies: number;
+        config_changes: number;
+        vulnerabilities: number;
+      }>("/api/security/stats"),
+
+    recordEvent: (event: Omit<SecurityEvent, "id" | "created_at">) =>
+      fetchAPI<SecurityEvent>("/api/security/record-event", {
+        method: "POST",
+        body: JSON.stringify(event),
+      }),
+
+    recordFailedLogin: (data: {
+      ip_address: string;
+      username?: string;
+      service?: string;
+      user_agent?: string;
+    }) =>
+      fetchAPI<{ status: string }>("/api/security/record-failed-login", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  },
 };
 

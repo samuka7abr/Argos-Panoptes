@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -76,6 +77,17 @@ func main() {
 	http.HandleFunc("/api/users", usersHandler)
 	http.HandleFunc("/api/slow", slowHandler)
 	http.HandleFunc("/api/error", errorHandler)
+
+	// Security endpoints
+	http.HandleFunc("/api/login", loginHandler)
+	http.HandleFunc("/api/security/traffic-spike", trafficSpikeHandler)
+	http.HandleFunc("/api/security/test", securityTestHandler)
+
+	// Attack simulation endpoints (para demonstração)
+	http.HandleFunc("/api/search", searchHandler)          // SQL injection simulation
+	http.HandleFunc("/api/comment", commentHandler)        // XSS simulation
+	http.HandleFunc("/api/file", fileHandler)              // Path traversal simulation
+	http.HandleFunc("/api/ddos-target", ddosTargetHandler) // DDoS target
 
 	// Iniciar servidor
 	addr := fmt.Sprintf("0.0.0.0:%s", port)
@@ -225,4 +237,260 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
+	var req struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Simular login: sempre falha para demonstrar segurança
+	// Em produção, isso seria verificado contra banco de dados
+	ip := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ip = forwarded
+	}
+	userAgent := r.Header.Get("User-Agent")
+
+	// Registrar tentativa falhada no Argos
+	argosURL := getEnv("ARGOS_API_URL", "http://api:8082")
+	failedLoginReq := map[string]interface{}{
+		"ip_address": ip,
+		"username":   req.Username,
+		"service":    "api-exemplo",
+		"user_agent": userAgent,
+	}
+
+	reqBody, _ := json.Marshal(failedLoginReq)
+	http.Post(argosURL+"/api/security/record-failed-login", "application/json", bytes.NewReader(reqBody))
+
+	// Retornar erro 401
+	http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+}
+
+func trafficSpikeHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	argosURL := getEnv("ARGOS_API_URL", "http://api:8082")
+
+	// Criar evento de anomalia de tráfego
+	event := map[string]interface{}{
+		"type":        "traffic_spike",
+		"severity":    "warning",
+		"description": "Pico súbito de tráfego detectado - aumento de 300% nas requisições",
+		"service":     "api-exemplo",
+		"target":      "api-exemplo-web",
+		"metadata": map[string]interface{}{
+			"spike_percentage": 300,
+			"duration":         "5 minutes",
+		},
+	}
+
+	reqBody, _ := json.Marshal(event)
+	resp, err := http.Post(argosURL+"/api/security/record-event", "application/json", bytes.NewReader(reqBody))
+	if err == nil {
+		resp.Body.Close()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "recorded",
+		"message": "Traffic spike event recorded",
+	})
+}
+
+func securityTestHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"endpoints": map[string]string{
+			"login":         "POST /api/login - Simula tentativa de login (sempre falha)",
+			"traffic_spike": "POST /api/security/traffic-spike - Registra pico de tráfego",
+			"search":        "GET /api/search?q=... - Simula SQL injection",
+			"comment":       "POST /api/comment - Simula XSS",
+			"file":          "GET /api/file?path=... - Simula Path Traversal",
+			"ddos":          "GET /api/ddos-target - Alvo para simulação de DDoS",
+		},
+	})
+}
+
+// searchHandler - Simula SQL injection (detecta e registra)
+func searchHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "Missing parameter 'q'", http.StatusBadRequest)
+		return
+	}
+
+	// Detectar padrões de SQL injection
+	sqlInjectionPatterns := []string{
+		"UNION SELECT", "OR 1=1", "'; DROP", "1' OR '1'='1",
+		"'; --", "/*", "*/", "xp_", "EXEC", "EXECUTE",
+	}
+
+	detected := false
+	for _, pattern := range sqlInjectionPatterns {
+		if contains(query, pattern) {
+			detected = true
+			break
+		}
+	}
+
+	if detected {
+		// Registrar evento de segurança
+		ip := getClientIP(r)
+		recordSecurityEvent("sql_injection_attempt", "critical",
+			fmt.Sprintf("Tentativa de SQL injection detectada: %s", query),
+			"api-exemplo", "api-exemplo-web", ip,
+			map[string]interface{}{
+				"query":      query,
+				"endpoint":   "/api/search",
+				"user_agent": r.UserAgent(),
+			})
+		http.Error(w, "Invalid query detected", http.StatusBadRequest)
+		return
+	}
+
+	// Query normal (simulada)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"results": []string{"result1", "result2"},
+		"query":   query,
+	})
+}
+
+// commentHandler - Simula XSS (detecta e registra)
+func commentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Comment string `json:"comment"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// Detectar padrões de XSS
+	xssPatterns := []string{"<script>", "javascript:", "onerror=", "onload=", "<img src=x", "alert("}
+
+	detected := false
+	for _, pattern := range xssPatterns {
+		if contains(req.Comment, pattern) {
+			detected = true
+			break
+		}
+	}
+
+	if detected {
+		ip := getClientIP(r)
+		recordSecurityEvent("xss_attempt", "high",
+			fmt.Sprintf("Tentativa de XSS detectada: %s", req.Comment),
+			"api-exemplo", "api-exemplo-web", ip,
+			map[string]interface{}{
+				"comment":    req.Comment,
+				"endpoint":   "/api/comment",
+				"user_agent": r.UserAgent(),
+			})
+		http.Error(w, "XSS attempt detected", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "comment saved"})
+}
+
+// fileHandler - Simula Path Traversal (detecta e registra)
+func fileHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		http.Error(w, "Missing parameter 'path'", http.StatusBadRequest)
+		return
+	}
+
+	// Detectar path traversal
+	if contains(path, "..") || contains(path, "/etc/") || contains(path, "/root/") || contains(path, "/proc/") {
+		ip := getClientIP(r)
+		recordSecurityEvent("path_traversal_attempt", "high",
+			fmt.Sprintf("Tentativa de Path Traversal detectada: %s", path),
+			"api-exemplo", "api-exemplo-web", ip,
+			map[string]interface{}{
+				"path":       path,
+				"endpoint":   "/api/file",
+				"user_agent": r.UserAgent(),
+			})
+		http.Error(w, "Path traversal attempt detected", http.StatusForbidden)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"file":    path,
+		"content": "file content here",
+	})
+}
+
+// ddosTargetHandler - Endpoint alvo para simulação de DDoS
+func ddosTargetHandler(w http.ResponseWriter, r *http.Request) {
+	// Simular processamento
+	time.Sleep(10 * time.Millisecond)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "ok",
+		"message": "DDoS target endpoint",
+	})
+}
+
+// Helper functions
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func getClientIP(r *http.Request) string {
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip == "" {
+		ip = r.Header.Get("X-Real-IP")
+	}
+	if ip == "" {
+		ip = r.RemoteAddr
+	}
+	return ip
+}
+
+func recordSecurityEvent(eventType, severity, description, service, target, ip string, metadata map[string]interface{}) {
+	argosURL := getEnv("ARGOS_API_URL", "http://api:8082")
+	event := map[string]interface{}{
+		"type":        eventType,
+		"severity":    severity,
+		"description": description,
+		"service":     service,
+		"target":      target,
+		"ip_address":  ip,
+		"metadata":    metadata,
+	}
+
+	reqBody, _ := json.Marshal(event)
+	http.Post(argosURL+"/api/security/record-event", "application/json", bytes.NewReader(reqBody))
+}

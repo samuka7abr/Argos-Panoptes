@@ -70,6 +70,19 @@ func (m *mockStorageWithAlertRules) ListTargets(service string) ([]string, error
 func (m *mockStorageWithAlertRules) GetMetricsCount() (int64, error)              { return 0, nil }
 func (m *mockStorageWithAlertRules) GetLastIngestTime() (time.Time, error)        { return time.Time{}, nil }
 func (m *mockStorageWithAlertRules) GetActiveAlerts() ([]shared.Alert, error)     { return nil, nil }
+func (m *mockStorageWithAlertRules) GetLatestMetrics() ([]shared.Metric, error)   { return nil, nil }
+func (m *mockStorageWithAlertRules) GetSecurityEvents(limit int) ([]SecurityEvent, error) { return nil, nil }
+func (m *mockStorageWithAlertRules) CreateSecurityEvent(event *SecurityEvent) error { return nil }
+func (m *mockStorageWithAlertRules) GetFailedLoginsByIP(limit int) ([]struct {
+	IPAddress string `json:"ip_address"`
+	Count     int    `json:"count"`
+}, error) { return nil, nil }
+func (m *mockStorageWithAlertRules) GetTotalFailedLogins() (int64, error) { return 0, nil }
+func (m *mockStorageWithAlertRules) RecordFailedLogin(ip, username, service, userAgent string) error { return nil }
+func (m *mockStorageWithAlertRules) GetConfigChanges(limit int) ([]ConfigChange, error) { return nil, nil }
+func (m *mockStorageWithAlertRules) RecordConfigChange(change *ConfigChange) error { return nil }
+func (m *mockStorageWithAlertRules) GetVulnerabilities() ([]Vulnerability, error) { return nil, nil }
+func (m *mockStorageWithAlertRules) GetTrafficAnomalies(limit int) (int64, error) { return 0, nil }
 func (m *mockStorageWithAlertRules) Close() error                                 { return nil }
 
 func TestListAlertRules(t *testing.T) {

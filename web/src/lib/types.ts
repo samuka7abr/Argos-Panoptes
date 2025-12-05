@@ -69,4 +69,44 @@ export type ServiceType = "http" | "https" | "postgres" | "dns" | "smtp" | "icmp
 
 export type Status = "ok" | "warning" | "critical";
 
+// Security types
+export interface SecurityEvent {
+  id: number;
+  type: string;
+  severity: string;
+  description: string;
+  service?: string;
+  target?: string;
+  ip_address?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export interface FailedLoginByIP {
+  ip_address: string;
+  count: number;
+}
+
+export interface ConfigChange {
+  id: number;
+  file_path: string;
+  change_type: string;
+  old_hash?: string;
+  new_hash?: string;
+  service?: string;
+  detected_at: string;
+}
+
+export interface Vulnerability {
+  id: number;
+  service: string;
+  cve?: string;
+  severity: string;
+  description?: string;
+  version?: string;
+  detected_at: string;
+  resolved_at?: string;
+}
+
+
 

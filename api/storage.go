@@ -26,11 +26,29 @@ type StorageInterface interface {
 	CreateAlertRule(rule *AlertRule) error
 	UpdateAlertRule(rule *AlertRule) error
 	DeleteAlertRule(id int) error
+	// Security methods
+	GetSecurityEvents(limit int) ([]SecurityEvent, error)
+	CreateSecurityEvent(event *SecurityEvent) error
+	GetFailedLoginsByIP(limit int) ([]struct {
+		IPAddress string `json:"ip_address"`
+		Count     int    `json:"count"`
+	}, error)
+	GetTotalFailedLogins() (int64, error)
+	RecordFailedLogin(ip, username, service, userAgent string) error
+	GetConfigChanges(limit int) ([]ConfigChange, error)
+	RecordConfigChange(change *ConfigChange) error
+	GetVulnerabilities() ([]Vulnerability, error)
+	GetTrafficAnomalies(limit int) (int64, error)
 	Close() error
 }
 
 type Storage struct {
 	db *sql.DB
+}
+
+// Expose db for direct access when needed (for vulnerabilities)
+func (s *Storage) DB() *sql.DB {
+	return s.db
 }
 
 func NewStorage(databaseURL string) (*Storage, error) {
@@ -392,4 +410,207 @@ func (s *Storage) DeleteAlertRule(id int) error {
 	}
 
 	return nil
+}
+
+// Security methods
+type SecurityEvent struct {
+	ID          int                    `json:"id"`
+	Type        string                 `json:"type"`
+	Severity    string                 `json:"severity"`
+	Description string                 `json:"description"`
+	Service     string                 `json:"service"`
+	Target      string                 `json:"target"`
+	IPAddress   string                 `json:"ip_address"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	CreatedAt   time.Time              `json:"created_at"`
+}
+
+type FailedLogin struct {
+	ID        int       `json:"id"`
+	IPAddress string    `json:"ip_address"`
+	Username  string    `json:"username"`
+	Service   string    `json:"service"`
+	UserAgent string    `json:"user_agent"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ConfigChange struct {
+	ID         int       `json:"id"`
+	FilePath   string    `json:"file_path"`
+	ChangeType string    `json:"change_type"`
+	OldHash    string    `json:"old_hash"`
+	NewHash    string    `json:"new_hash"`
+	Service    string    `json:"service"`
+	DetectedAt time.Time `json:"detected_at"`
+}
+
+type Vulnerability struct {
+	ID          int        `json:"id"`
+	Service     string     `json:"service"`
+	CVE         string     `json:"cve"`
+	Severity    string     `json:"severity"`
+	Description string     `json:"description"`
+	Version     string     `json:"version"`
+	DetectedAt  time.Time  `json:"detected_at"`
+	ResolvedAt  *time.Time `json:"resolved_at"`
+}
+
+func (s *Storage) CreateSecurityEvent(event *SecurityEvent) error {
+	metadataJSON, _ := json.Marshal(event.Metadata)
+	return s.db.QueryRow(`
+		INSERT INTO security_events (type, severity, description, service, target, ip_address, metadata)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at
+	`, event.Type, event.Severity, event.Description, event.Service, event.Target, event.IPAddress, metadataJSON).
+		Scan(&event.ID, &event.CreatedAt)
+}
+
+func (s *Storage) GetSecurityEvents(limit int) ([]SecurityEvent, error) {
+	rows, err := s.db.Query(`
+		SELECT id, type, severity, description, service, target, ip_address, metadata, created_at
+		FROM security_events
+		ORDER BY created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []SecurityEvent
+	for rows.Next() {
+		var e SecurityEvent
+		var metadataJSON []byte
+		if err := rows.Scan(&e.ID, &e.Type, &e.Severity, &e.Description, &e.Service, &e.Target, &e.IPAddress, &metadataJSON, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		json.Unmarshal(metadataJSON, &e.Metadata)
+		events = append(events, e)
+	}
+	return events, nil
+}
+
+func (s *Storage) RecordFailedLogin(ip, username, service, userAgent string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO failed_logins (ip_address, username, service, user_agent)
+		VALUES ($1, $2, $3, $4)
+	`, ip, username, service, userAgent)
+	return err
+}
+
+func (s *Storage) GetFailedLoginsByIP(limit int) ([]struct {
+	IPAddress string `json:"ip_address"`
+	Count     int    `json:"count"`
+}, error) {
+	rows, err := s.db.Query(`
+		SELECT ip_address, COUNT(*) as count
+		FROM failed_logins
+		WHERE created_at > NOW() - INTERVAL '24 hours'
+		GROUP BY ip_address
+		ORDER BY count DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []struct {
+		IPAddress string `json:"ip_address"`
+		Count     int    `json:"count"`
+	}
+	for rows.Next() {
+		var r struct {
+			IPAddress string `json:"ip_address"`
+			Count     int    `json:"count"`
+		}
+		if err := rows.Scan(&r.IPAddress, &r.Count); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+func (s *Storage) GetTotalFailedLogins() (int64, error) {
+	var count int64
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM failed_logins
+		WHERE created_at > NOW() - INTERVAL '24 hours'
+	`).Scan(&count)
+	return count, err
+}
+
+func (s *Storage) RecordConfigChange(change *ConfigChange) error {
+	return s.db.QueryRow(`
+		INSERT INTO config_changes (file_path, change_type, old_hash, new_hash, service)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, detected_at
+	`, change.FilePath, change.ChangeType, change.OldHash, change.NewHash, change.Service).
+		Scan(&change.ID, &change.DetectedAt)
+}
+
+func (s *Storage) GetConfigChanges(limit int) ([]ConfigChange, error) {
+	rows, err := s.db.Query(`
+		SELECT id, file_path, change_type, old_hash, new_hash, service, detected_at
+		FROM config_changes
+		ORDER BY detected_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var changes []ConfigChange
+	for rows.Next() {
+		var c ConfigChange
+		if err := rows.Scan(&c.ID, &c.FilePath, &c.ChangeType, &c.OldHash, &c.NewHash, &c.Service, &c.DetectedAt); err != nil {
+			return nil, err
+		}
+		changes = append(changes, c)
+	}
+	return changes, nil
+}
+
+func (s *Storage) GetVulnerabilities() ([]Vulnerability, error) {
+	rows, err := s.db.Query(`
+		SELECT id, service, cve, severity, description, version, detected_at, resolved_at
+		FROM vulnerabilities
+		WHERE resolved_at IS NULL
+		ORDER BY 
+			CASE severity
+				WHEN 'critical' THEN 1
+				WHEN 'high' THEN 2
+				WHEN 'medium' THEN 3
+				WHEN 'low' THEN 4
+				ELSE 5
+			END,
+			detected_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var vulns []Vulnerability
+	for rows.Next() {
+		var v Vulnerability
+		if err := rows.Scan(&v.ID, &v.Service, &v.CVE, &v.Severity, &v.Description, &v.Version, &v.DetectedAt, &v.ResolvedAt); err != nil {
+			return nil, err
+		}
+		vulns = append(vulns, v)
+	}
+	return vulns, nil
+}
+
+func (s *Storage) GetTrafficAnomalies(limit int) (int64, error) {
+	// Contar eventos de anomalia de tráfego nas últimas 24h
+	var count int64
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM security_events
+		WHERE type IN ('traffic_spike', 'ddos_attack', 'anomaly_detected')
+		AND created_at > NOW() - INTERVAL '24 hours'
+	`).Scan(&count)
+	return count, err
 }
