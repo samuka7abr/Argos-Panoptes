@@ -32,7 +32,7 @@ const DNS = () => {
   const { data: lookupData } = useMetricQuery(
     "dns",
     currentTarget,
-    "dns_lookup_duration_ms",
+    "dns_lookup_ms",
     "1h",
     !!currentTarget
   );
@@ -40,7 +40,7 @@ const DNS = () => {
   const currentMetrics = dnsMetrics?.find((m) => m.target === currentTarget);
 
   const isUp = currentMetrics?.metrics.dns_up === 1;
-  const lookupDuration = currentMetrics?.metrics.dns_lookup_duration_ms || 0;
+  const lookupDuration = currentMetrics?.metrics.dns_lookup_ms || 0;
 
   const chartData =
     lookupData?.data.map((d) => ({
@@ -181,7 +181,7 @@ const DNS = () => {
           <div className="space-y-3">
             {dnsMetrics.map((metric) => {
               const targetUp = metric.metrics.dns_up === 1;
-              const targetDuration = metric.metrics.dns_lookup_duration_ms || 0;
+              const targetDuration = metric.metrics.dns_lookup_ms || 0;
 
               return (
                 <div

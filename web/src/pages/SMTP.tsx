@@ -32,7 +32,7 @@ const SMTP = () => {
   const { data: handshakeData } = useMetricQuery(
     "smtp",
     currentTarget,
-    "smtp_handshake_duration_ms",
+    "smtp_handshake_ms",
     "1h",
     !!currentTarget
   );
@@ -40,7 +40,7 @@ const SMTP = () => {
   const currentMetrics = smtpMetrics?.find((m) => m.target === currentTarget);
 
   const isUp = currentMetrics?.metrics.smtp_up === 1;
-  const handshakeDuration = currentMetrics?.metrics.smtp_handshake_duration_ms || 0;
+  const handshakeDuration = currentMetrics?.metrics.smtp_handshake_ms || 0;
   const supportsTLS = currentMetrics?.metrics.smtp_supports_tls === 1;
 
   const chartData =
@@ -214,7 +214,7 @@ const SMTP = () => {
           <div className="space-y-3">
             {smtpMetrics.map((metric) => {
               const targetUp = metric.metrics.smtp_up === 1;
-              const targetDuration = metric.metrics.smtp_handshake_duration_ms || 0;
+              const targetDuration = metric.metrics.smtp_handshake_ms || 0;
               const targetTLS = metric.metrics.smtp_supports_tls === 1;
 
               return (
