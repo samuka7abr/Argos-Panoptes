@@ -84,6 +84,50 @@ func (m *mockStorage) DeleteAlertRule(id int) error {
 	return nil
 }
 
+func (m *mockStorage) GetLatestMetrics() ([]shared.Metric, error) {
+	return m.metrics, nil
+}
+
+// Security methods
+func (m *mockStorage) GetSecurityEvents(limit int) ([]SecurityEvent, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) CreateSecurityEvent(event *SecurityEvent) error {
+	return nil
+}
+
+func (m *mockStorage) GetFailedLoginsByIP(limit int) ([]struct {
+	IPAddress string `json:"ip_address"`
+	Count     int    `json:"count"`
+}, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) GetTotalFailedLogins() (int64, error) {
+	return 0, nil
+}
+
+func (m *mockStorage) RecordFailedLogin(ip, username, service, userAgent string) error {
+	return nil
+}
+
+func (m *mockStorage) GetConfigChanges(limit int) ([]ConfigChange, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) RecordConfigChange(change *ConfigChange) error {
+	return nil
+}
+
+func (m *mockStorage) GetVulnerabilities() ([]Vulnerability, error) {
+	return nil, nil
+}
+
+func (m *mockStorage) GetTrafficAnomalies(limit int) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockStorage) Close() error {
 	return nil
 }
